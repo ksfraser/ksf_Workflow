@@ -12,6 +12,7 @@ class WorkflowAction
     public ?string $actionType = null;
     public $actionConfig = null;
     public ?int $order = 0;
+    public ?array $workingEntity = null;
     public bool $isActive = true;
     public ?string $createdAt = null;
     public ?string $updatedAt = null;
@@ -70,6 +71,8 @@ public function execute(array &$entity, ?array $context = null): bool
             ? $this->actionConfig 
             : json_decode($this->actionConfig, true) ?? [];
 
+        $this->workingEntity = &$entity;
+        
         $type = $this->actionType;
         
         if ($type === 'update_field') return $this->executeUpdateField($entity, $config);
@@ -204,24 +207,18 @@ public function execute(array &$entity, ?array $context = null): bool
     }
 
     private function executeLoadRecord(array $config, array $entity, ?array $context = null): bool
-    {
-        error_log("executeLoadRecord CALLED");
-        
+    {        
         $entityType = $config['entity_type'] ?? null;
         $entityId = $config['entity_id'] ?? null;
         $targetField = $config['target_field'] ?? 'loaded_record';
         
-        error_log("entityId from config: " . var_export($entityId, true));
-        error_log("targetField: " . var_export($targetField, true));
-        
         if (!$entityType || !$entityId) {
             $entityId = $entity['id'] ?? null;
-            error_log("entityId from entity: " . var_export($entityId, true));
         }
         
         if ($entityId) {
-            $entity[$targetField] = ['type' => $entityType, 'id' => $entityId, 'loaded' => true];
-            error_log("Setting loaded_record: " . var_export($entity[$targetField], true));
+            $this->workingEntity[$targetField] = ['type' => $entityType, 'id' => $entityId, 'loaded' => true];
+            $entity[$targetField] = $this->workingEntity[$targetField];
             return true;
         }
         
@@ -237,11 +234,12 @@ public function execute(array &$entity, ?array $context = null): bool
         $relatedId = $entity[$sourceField] ?? null;
         
         if ($relatedId) {
-            $entity[$targetField] = [
+            $this->workingEntity[$targetField] = [
                 'relation' => $relation,
                 'id' => $relatedId,
                 'loaded' => true,
             ];
+            $entity[$targetField] = $this->workingEntity[$targetField];
             return true;
         }
         
@@ -266,6 +264,7 @@ public function execute(array &$entity, ?array $context = null): bool
                 case 'update_field':
                     $field = $actionConfig['field'] ?? null;
                     if ($field) {
+                        $this->workingEntity[$field] = $actionValue;
                         $entity[$field] = $actionValue;
                     }
                     break;
@@ -273,8 +272,10 @@ public function execute(array &$entity, ?array $context = null): bool
                 case 'load_record':
                     $entityType = $actionConfig['entity_type'] ?? null;
                     $entityId = $actionConfig['entity_id'] ?? null;
+                    $targetField = $actionConfig['target_field'] ?? 'loaded_record';
                     if ($entityId) {
-                        $entity['loaded_' . $entityType] = ['type' => $entityType, 'id' => $entityId];
+                        $this->workingEntity[$targetField] = ['type' => $entityType, 'id' => $entityId];
+                        $entity[$targetField] = $this->workingEntity[$targetField];
                     }
                     break;
                     
@@ -285,14 +286,17 @@ public function execute(array &$entity, ?array $context = null): bool
                         foreach ($entity as $key => $val) {
                             $expression = str_replace('{' . $key . '}', (string) $val, $expression);
                         }
-                        $entity[$targetField] = eval("return $expression;") ?? 0;
+                        $result = eval("return $expression;") ?? 0;
+                        $this->workingEntity[$targetField] = $result;
+                        $entity[$targetField] = $result;
                     }
                     break;
                     
                 case 'set_field':
                     $field = $actionConfig['field'] ?? null;
                     if ($field) {
-                        $entity[$field] = $actionConfig['value'] ?? null;
+                        $this->workingEntity[$field] = $actionConfig['value'] ?? null;
+                        $entity[$field] = $this->workingEntity[$field];
                     }
                     break;
                     
