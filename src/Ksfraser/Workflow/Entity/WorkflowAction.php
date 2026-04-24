@@ -30,6 +30,9 @@ class WorkflowAction
             'webhook',
             'http_request',
             'condition',
+            'load_record',
+            'load_related',
+            'chain',
         ];
     }
 
@@ -53,7 +56,7 @@ class WorkflowAction
         ];
     }
 
-    public function execute(array &$entity, ?array $context = null): bool
+public function execute(array &$entity, ?array $context = null): bool
     {
         if (!$this->isActive) {
             return false;
@@ -67,22 +70,26 @@ class WorkflowAction
             ? $this->actionConfig 
             : json_decode($this->actionConfig, true) ?? [];
 
-        return match ($this->actionType) {
-            'update_field' => $this->executeUpdateField($entity, $config),
-            'set_field' => $this->executeSetField($entity, $config),
-            'calculate' => $this->executeCalculate($entity, $config),
-            'create_record' => $this->executeCreateRecord($config, $context),
-            'trigger_event' => $this->executeTriggerEvent($config, $entity),
-            'send_email' => $this->executeSendEmail($config, $entity),
-            'assign_to' => $this->executeAssignTo($entity, $config),
-            'add_note' => $this->executeAddNote($config, $entity),
-            'webhook' => $this->executeWebhook($config, $entity),
-            'http_request' => $this->executeHttpRequest($config, $entity),
-            'condition' => $this->executeCondition($entity, $config),
-            default => false,
-        };
+        $type = $this->actionType;
+        
+        if ($type === 'update_field') return $this->executeUpdateField($entity, $config);
+        if ($type === 'set_field') return $this->executeSetField($entity, $config);
+        if ($type === 'calculate') return $this->executeCalculate($entity, $config);
+        if ($type === 'create_record') return $this->executeCreateRecord($config, $context);
+        if ($type === 'trigger_event') return $this->executeTriggerEvent($config, $entity);
+        if ($type === 'send_email') return $this->executeSendEmail($config, $entity);
+        if ($type === 'assign_to') return $this->executeAssignTo($entity, $config);
+        if ($type === 'add_note') return $this->executeAddNote($config, $entity);
+        if ($type === 'webhook') return $this->executeWebhook($config, $entity);
+        if ($type === 'http_request') return $this->executeHttpRequest($config, $entity);
+        if ($type === 'condition') return $this->executeCondition($entity, $config);
+        if ($type === 'load_record') return $this->executeLoadRecord($config, $entity, $context);
+        if ($type === 'load_related') return $this->executeLoadRelated($config, $entity, $context);
+        if ($type === 'chain') return $this->executeChain($config, $entity, $context);
+        
+        return false;
     }
-
+    
     private function executeUpdateField(array &$entity, array $config): bool
     {
         $field = $config['field'] ?? null;
@@ -194,6 +201,107 @@ class WorkflowAction
     private function executeCondition(array &$entity, array $config): bool
     {
         return true;
+    }
+
+    private function executeLoadRecord(array $config, array $entity, ?array $context = null): bool
+    {
+        error_log("executeLoadRecord CALLED");
+        
+        $entityType = $config['entity_type'] ?? null;
+        $entityId = $config['entity_id'] ?? null;
+        $targetField = $config['target_field'] ?? 'loaded_record';
+        
+        error_log("entityId from config: " . var_export($entityId, true));
+        error_log("targetField: " . var_export($targetField, true));
+        
+        if (!$entityType || !$entityId) {
+            $entityId = $entity['id'] ?? null;
+            error_log("entityId from entity: " . var_export($entityId, true));
+        }
+        
+        if ($entityId) {
+            $entity[$targetField] = ['type' => $entityType, 'id' => $entityId, 'loaded' => true];
+            error_log("Setting loaded_record: " . var_export($entity[$targetField], true));
+            return true;
+        }
+        
+        return false;
+    }
+
+    private function executeLoadRelated(array $config, array $entity, ?array $context = null): bool
+    {
+        $relation = $config['relation'] ?? null;
+        $sourceField = $config['source_field'] ?? 'debtor_no';
+        $targetField = $config['target_field'] ?? 'related_record';
+        
+        $relatedId = $entity[$sourceField] ?? null;
+        
+        if ($relatedId) {
+            $entity[$targetField] = [
+                'relation' => $relation,
+                'id' => $relatedId,
+                'loaded' => true,
+            ];
+            return true;
+        }
+        
+        return false;
+    }
+
+    private function executeChain(array $config, array $entity, ?array $context = null): bool
+    {
+        $actions = $config['actions'] ?? [];
+        
+        if (empty($actions)) {
+            return false;
+        }
+        
+        $allSuccess = true;
+        
+        foreach ($actions as $actionConfig) {
+            $actionType = $actionConfig['type'] ?? null;
+            $actionValue = $actionConfig['value'] ?? null;
+            
+            switch ($actionType) {
+                case 'update_field':
+                    $field = $actionConfig['field'] ?? null;
+                    if ($field) {
+                        $entity[$field] = $actionValue;
+                    }
+                    break;
+                    
+                case 'load_record':
+                    $entityType = $actionConfig['entity_type'] ?? null;
+                    $entityId = $actionConfig['entity_id'] ?? null;
+                    if ($entityId) {
+                        $entity['loaded_' . $entityType] = ['type' => $entityType, 'id' => $entityId];
+                    }
+                    break;
+                    
+                case 'calculate':
+                    $targetField = $actionConfig['target_field'] ?? null;
+                    $expression = $actionConfig['expression'] ?? null;
+                    if ($targetField && $expression) {
+                        foreach ($entity as $key => $val) {
+                            $expression = str_replace('{' . $key . '}', (string) $val, $expression);
+                        }
+                        $entity[$targetField] = eval("return $expression;") ?? 0;
+                    }
+                    break;
+                    
+                case 'set_field':
+                    $field = $actionConfig['field'] ?? null;
+                    if ($field) {
+                        $entity[$field] = $actionConfig['value'] ?? null;
+                    }
+                    break;
+                    
+                default:
+                    $allSuccess = false;
+            }
+        }
+        
+        return $allSuccess;
     }
 
     public function toArray(): array
