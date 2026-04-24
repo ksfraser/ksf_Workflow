@@ -1,0 +1,19 @@
+{
+    "name": "ksfraser/ksf-workflow",
+    "description": "Workflow Engine - triggers, conditions, actions",
+    "type": "php-package",
+    "license": "GPL-3.0",
+    "require": {
+        "php": ">=8.1",
+        "ksfraser/event": "^1.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^10.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Ksfraser\\Workflow\\": "src/Ksfraser/Workflow/"
+        }
+    },
+    "minimum-stability": "stable"
+}
