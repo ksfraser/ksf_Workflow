@@ -12,7 +12,7 @@
     },
     "autoload": {
         "psr-4": {
-            "Ksfraser\\Workflow\\": "src/Ksfraser/Workflow/"
+            "Ksfraser\\": "src/Ksfraser/"
         }
     },
     "minimum-stability": "stable"
