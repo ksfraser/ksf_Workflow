@@ -1,6 +1,6 @@
 <?php
 
-require_once __DIR__ . '/../../ksf_Calendar/vendor/autoload.php';
+require_once __DIR__ . '/../vendor/autoload.php';
 
 $base = __DIR__ . '/../src/Ksfraser/Workflow/';
 
