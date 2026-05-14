@@ -284,7 +284,8 @@ public function execute(array &$entity, ?array $context = null): bool
                     $expression = $actionConfig['expression'] ?? null;
                     if ($targetField && $expression) {
                         foreach ($entity as $key => $val) {
-                            $expression = str_replace('{' . $key . '}', (string) $val, $expression);
+                            $valStr = is_scalar($val) ? (string)$val : json_encode($val);
+                            $expression = str_replace('{' . $key . '}', $valStr, $expression);
                         }
                         $result = eval("return $expression;") ?? 0;
                         $this->workingEntity[$targetField] = $result;

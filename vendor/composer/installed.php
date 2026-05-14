@@ -3,7 +3,7 @@
         'name' => 'ksfraser/ksf-workflow',
         'pretty_version' => 'dev-master',
         'version' => 'dev-master',
-        'reference' => '43e3598efd1465335df2f9024b3121f6f6db16c9',
+        'reference' => '5634a09f6213127d6937e936e3b2db7114d995ff',
         'type' => 'php-package',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -22,7 +22,7 @@
         'ksfraser/ksf-workflow' => array(
             'pretty_version' => 'dev-master',
             'version' => 'dev-master',
-            'reference' => '43e3598efd1465335df2f9024b3121f6f6db16c9',
+            'reference' => '5634a09f6213127d6937e936e3b2db7114d995ff',
             'type' => 'php-package',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
