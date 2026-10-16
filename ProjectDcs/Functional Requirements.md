@@ -178,6 +178,55 @@ ksf_Workflow provides a centralized workflow engine for routing approvals, autom
 - APPROVE/REJECT in subject
 - Confirmation notification
 
+### FR-WF-011: RBAC Module Registration
+**Requirement**: System shall register all workflow record types with ksfraser/rbac.
+
+**Features**:
+- Register record types: workflow_definition, workflow_instance, workflow_step_instance, workflow_log
+- Register PUBLIC and FULL projection field maps for each entity
+- Define inheritance map: workflow_step_instance and workflow_log as children of workflow_instance
+- Define default type-level permissions for each role in seed data
+- Expose module metadata via RbacModuleInterface
+
+### FR-WF-012: RBAC Record Access Enforcement
+**Requirement**: All workflow data queries SHALL enforce record-level access via 0_rbac_record_access JOIN.
+
+**Features**:
+- All repository SELECT queries MUST JOIN against 0_rbac_record_access
+- INSERT into new workflow_instance MUST grant access to initiator's effective teams
+- INSERT into workflow_step_instance MUST inherit parent workflow_instance access
+- All queries MUST respect deny_overrides for explicit access revocation
+- Access enforcement must be structural (SQL JOIN), not application-level filtering
+
+### FR-WF-013: RBAC Projection Enforcement
+**Requirement**: Field-level access SHALL be enforced via named projections (PUBLIC/FULL).
+
+**Features**:
+- WorkflowDefinition queries MUST restrict to PUBLIC fields when user holds PUBLIC projection only
+- WorkflowStepInstance escalation fields (escalated_at, escalated_to, escalation_history) MUST be FULL-only
+- WorkflowLog detail and metadata fields MUST be FULL-only
+- Repository methods SHALL accept optional projection parameter
+- Default projection per role defined via rbac_role_permissions.default_projection
+
+### FR-WF-014: RBAC Soft Delete & Audit Compliance
+**Requirement**: Workflow records SHALL comply with RBAC soft delete and audit requirements.
+
+**Features**:
+- WorkflowDefinition soft deactivation via is_active flag; hidden from PUBLIC projection when inactive
+- Deactivated definitions visible only with can_view_deleted type-level permission
+- WorkflowInstance and WorkflowStepInstance are immutable audit records — status transition only
+- WorkflowLog is append-only; application-level UPDATE/DELETE prohibited
+- All RBAC access mutations (grant, revoke, elevation) logged to 0_rbac_audit_log
+
+### FR-WF-015: RBAC Persons Registry Integration
+**Requirement**: Approver resolution SHALL support integration with ksf_CRM Persons registry.
+
+**Features**:
+- ApproverResolverInterface MAY accept PersonsRegistryInterface for person-based approver lookup
+- Workflow definitions MAY reference person_id for approver resolution
+- Org chart changes in Persons registry cascade to delegable approver pool
+- Integration is optional and configured per workflow definition
+
 ## 4. Data Flows
 
 ### 4.1 Basic Approval Flow
